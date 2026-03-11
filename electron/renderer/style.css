@@ -186,6 +186,33 @@ textarea:focus {
   color: var(--text-muted);
 }
 
+.hint-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hint-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.hint-example {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #0a0a0a;
+  border-radius: 4px;
+  font-family: "Consolas", "D2Coding", monospace;
+  color: #60a5fa;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
 .form-actions {
   display: flex;
   gap: 8px;
@@ -210,6 +237,31 @@ button {
 .btn-secondary:hover {
   background: #2f2f2f;
   border-color: #555;
+}
+
+/* ── 브라우저 선택 버튼 ── */
+.browser-select-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-browser {
+  flex: 1;
+  background: var(--surface2);
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-browser:hover { color: var(--text); border-color: #555; }
+.btn-browser.active {
+  background: #1a1a2e;
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
 }
 
 /* ── 로그 ── */

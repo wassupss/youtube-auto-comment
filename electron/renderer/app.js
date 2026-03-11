@@ -63,56 +63,72 @@ async function loadConfig() {
   const res = await fetch(`${API}/config`);
   const cfg = await res.json();
   document.getElementById("youtube-url").value = cfg.youtube_url || "";
-  document.getElementById("txt-file").value = cfg.txt_file || "";
-  document.getElementById("brave-path").value = cfg.brave_path || "";
   document.getElementById("interval").value = cfg.interval || 60;
+
+  // 브라우저 선택 복원
+  const browserType = cfg.browser_type || "chrome";
+  selectBrowser(browserType, cfg.browser_path || "");
 }
+
+// ── 브라우저 선택 UI ────────────────────────────────────────
+const BROWSER_HINTS = {
+  chrome: "Chrome 기본 설치 경로를 자동으로 사용합니다.",
+  brave:  "Brave 기본 설치 경로를 자동으로 사용합니다.",
+  custom: "브라우저 실행파일 경로를 직접 입력하세요.",
+};
+
+function selectBrowser(type, customPath = "") {
+  document.querySelectorAll(".btn-browser").forEach((b) => {
+    b.classList.toggle("active", b.dataset.browser === type);
+  });
+  const customRow = document.getElementById("custom-path-row");
+  const hint = document.getElementById("browser-hint");
+  customRow.style.display = type === "custom" ? "flex" : "none";
+  hint.textContent = BROWSER_HINTS[type] || "";
+  if (type === "custom" && customPath) {
+    document.getElementById("browser-path").value = customPath;
+  }
+}
+
+document.querySelectorAll(".btn-browser").forEach((btn) => {
+  btn.addEventListener("click", () => selectBrowser(btn.dataset.browser));
+});
+
+document.getElementById("browse-browser").addEventListener("click", async () => {
+  const path = await window.api.openFile([
+    { name: "실행 파일", extensions: ["exe", "app", "*"] },
+    { name: "모든 파일", extensions: ["*"] },
+  ]);
+  if (path) document.getElementById("browser-path").value = path;
+});
 
 // ── 설정 저장 ───────────────────────────────────────────────
 async function getConfigFromUI() {
+  const browserType = document.querySelector(".btn-browser.active")?.dataset.browser || "chrome";
+  const browserPath = browserType === "custom"
+    ? document.getElementById("browser-path").value.trim()
+    : "";
   return {
     youtube_url: document.getElementById("youtube-url").value.trim(),
-    txt_file: document.getElementById("txt-file").value.trim(),
-    brave_path: document.getElementById("brave-path").value.trim(),
+    browser_type: browserType,
+    browser_path: browserPath,
     interval: parseInt(document.getElementById("interval").value) || 60,
   };
 }
 
 document.getElementById("save-config").addEventListener("click", async () => {
   const cfg = await getConfigFromUI();
-  await fetch(`${API}/config`, {
+  const res = await fetch(`${API}/config`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),
   });
+  const data = await res.json();
+  if (!data.ok) { appendLog(`❌ ${data.msg}`); return; }
   showToast("설정이 저장되었습니다.");
 });
 
-// ── 파일 찾아보기 ───────────────────────────────────────────
-document.getElementById("browse-txt").addEventListener("click", async () => {
-  const path = await window.api.openFile([
-    { name: "텍스트 파일", extensions: ["txt"] },
-    { name: "모든 파일", extensions: ["*"] },
-  ]);
-  if (path) {
-    document.getElementById("txt-file").value = path;
-    await fetch(`${API}/config`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(await getConfigFromUI()),
-    });
-    loadMessages();
-  }
-});
-
-document.getElementById("browse-brave").addEventListener("click", async () => {
-  const path = await window.api.openFile([
-    { name: "실행 파일", extensions: ["exe", "*"] },
-    { name: "모든 파일", extensions: ["*"] },
-  ]);
-  if (path) document.getElementById("brave-path").value = path;
-});
-
+// ── Brave 경로 찾아보기 ─────────────────────────────────────
 // ── 문구 로드 / 저장 ────────────────────────────────────────
 async function loadMessages() {
   const res = await fetch(`${API}/messages`);

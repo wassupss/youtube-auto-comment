@@ -40,10 +40,33 @@ if platform.system() == "Windows":
 else:
     DEFAULT_BRAVE_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
 
+# OS별 브라우저 기본 경로
+BROWSER_PATHS = {
+    "chrome": {
+        "Windows": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        "Darwin":  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "Linux":   "/usr/bin/google-chrome",
+    },
+    "brave": {
+        "Windows": r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+        "Darwin":  "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        "Linux":   "/usr/bin/brave-browser",
+    },
+}
+
+def resolve_browser_path(cfg: dict) -> str:
+    """browser_type 에 따라 실행파일 경로 반환"""
+    browser_type = cfg.get("browser_type", "chrome")
+    if browser_type == "custom":
+        return cfg.get("browser_path", "")
+    os_name = platform.system()  # 'Windows' | 'Darwin' | 'Linux'
+    return BROWSER_PATHS.get(browser_type, BROWSER_PATHS["chrome"]).get(os_name, "")
+
 DEFAULT_CONFIG = {
     "youtube_url": "https://www.youtube.com/watch?v=FJfwehhzIhw",
-    "txt_file": "YTN_live.txt",   # 파일명만 저장 → BASE_DIR 기준으로 resolve
-    "brave_path": DEFAULT_BRAVE_PATH,
+    "txt_file": "YTN_live.txt",
+    "browser_type": "chrome",   # chrome | brave | custom
+    "browser_path": "",         # custom 일 때만 사용
     "interval": 60
 }
 
@@ -61,12 +84,11 @@ def validate_url(url: str) -> bool:
     """YouTube URL만 허용"""
     return url.startswith("https://www.youtube.com/") or url.startswith("https://youtu.be/")
 
-def validate_brave_path(path: str) -> bool:
-    """실행파일 경로 기본 검증"""
+def validate_browser_path(path: str) -> bool:
+    """실행파일 경로 기본 검증 (custom 모드일 때만 사용)"""
     if not path:
-        return False
+        return True  # chrome/brave는 자동 경로 사용이므로 빈값 허용
     normalized = os.path.normpath(path)
-    # 경로 순회 방지
     if ".." in normalized:
         return False
     return True
@@ -121,8 +143,8 @@ def post_config():
     # 입력값 검증
     if not validate_url(cfg.get("youtube_url", "")):
         return jsonify({"ok": False, "msg": "유효하지 않은 YouTube URL입니다."}), 400
-    if not validate_brave_path(cfg.get("brave_path", "")):
-        return jsonify({"ok": False, "msg": "유효하지 않은 Brave 경로입니다."}), 400
+    if not validate_browser_path(cfg.get("browser_path", "")):
+        return jsonify({"ok": False, "msg": "유효하지 않은 브라우저 경로입니다."}), 400
     try:
         cfg["interval"] = max(10, min(3600, int(cfg.get("interval", 60))))
     except (ValueError, TypeError):
@@ -212,7 +234,14 @@ def _run_bot(cfg):
         return
 
     options = Options()
-    options.binary_location = cfg["brave_path"]
+    browser_exe = resolve_browser_path(cfg)
+    if not browser_exe or not os.path.exists(browser_exe):
+        _log(f"❌ 브라우저를 찾을 수 없습니다: {browser_exe}")
+        _log(f"   Chrome 또는 Brave가 기본 경로에 설치되어 있는지 확인하세요.")
+        _log("__DONE__")
+        bot_running = False
+        return
+    options.binary_location = browser_exe
     options.add_argument("--disable-blink-features=AutomationControlled")
 
     try:

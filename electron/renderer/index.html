@@ -39,22 +39,21 @@
           />
         </div>
         <div class="form-group">
-          <label>문구 파일 경로 (.txt)</label>
-          <div class="input-row">
-            <input type="text" id="txt-file" placeholder="YTN_live.txt 경로" />
-            <button class="btn-secondary" id="browse-txt">찾아보기</button>
+          <label>브라우저 선택</label>
+          <div class="browser-select-row">
+            <button class="btn-browser active" data-browser="chrome">🌐 Chrome</button>
+            <button class="btn-browser" data-browser="brave">🦁 Brave</button>
+            <button class="btn-browser" data-browser="custom">📁 직접 지정</button>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Brave 브라우저 경로</label>
-          <div class="input-row">
+          <div id="custom-path-row" class="input-row" style="display:none; margin-top:8px">
             <input
               type="text"
-              id="brave-path"
-              placeholder="brave.exe 또는 Brave Browser 경로"
+              id="browser-path"
+              placeholder="브라우저 실행파일 경로"
             />
-            <button class="btn-secondary" id="browse-brave">찾아보기</button>
+            <button class="btn-secondary" id="browse-browser">찾아보기</button>
           </div>
+          <p class="hint" id="browser-hint" style="margin-top:6px">Chrome 기본 설치 경로를 자동으로 사용합니다.</p>
         </div>
         <div class="form-group">
           <label>전송 간격 (초)</label>
@@ -73,10 +72,16 @@
 
       <!-- 문구 편집 탭 -->
       <section id="tab-messages" class="tab-content">
-        <p class="hint">한 줄에 문구 하나씩 입력하세요. 빈 줄은 무시됩니다.</p>
+        <div class="hint-box">
+          <p class="hint-title">📌 작성 방법</p>
+          <p class="hint">• 한 줄에 문구 하나씩 입력하세요.</p>
+          <p class="hint">• 빈 줄은 자동으로 무시됩니다.</p>
+          <p class="hint">• 문구 뒤에 랜덤 코드(code:XXX)가 자동으로 붙습니다. (중복 방지)</p>
+          <p class="hint hint-example">예시)<br>지금 라이브 보고 있어요! 좋아요 눌렀습니다 👍<br>항상 좋은 방송 감사합니다 🙏<br>응원합니다! 파이팅!!</p>
+        </div>
         <textarea
           id="messages-editor"
-          placeholder="홍보 문구를 입력하세요..."
+          placeholder="여기에 문구를 입력하세요...&#10;&#10;예)&#10;지금 라이브 보고 있어요!&#10;항상 좋은 방송 감사합니다 🙏"
         ></textarea>
         <div class="form-actions">
           <button class="btn-secondary" id="reload-messages">
