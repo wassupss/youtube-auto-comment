@@ -10,17 +10,13 @@
   },
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:all": "electron-builder --mac --win"
+    "build:mac": "electron-builder --mac --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:all": "electron-builder --mac --win --publish never"
   },
   "build": {
     "appId": "com.youtubebot.app",
     "productName": "유튜브봇",
-    "publish": {
-      "provider": "github",
-      "releaseType": "release"
-    },
     "files": [
       "main.js",
       "preload.js",

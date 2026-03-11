@@ -50,8 +50,6 @@ jobs:
       - name: Electron → .dmg 빌드
         working-directory: electron
         run: npm run build:mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 빌드 결과물 업로드
         uses: actions/upload-artifact@v4
@@ -103,8 +101,6 @@ jobs:
       - name: Electron → .exe 인스톨러 빌드
         working-directory: electron
         run: npm run build:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 빌드 결과물 업로드
         uses: actions/upload-artifact@v4
