@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "유튜브 자동 채팅 봇",
   "main": "main.js",
+  "author": "auto-comment",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/songhwaseob/youtube-auto-comment"
+  },
   "scripts": {
     "start": "electron .",
     "build:mac": "electron-builder --mac",
@@ -12,6 +17,10 @@
   "build": {
     "appId": "com.youtubebot.app",
     "productName": "유튜브봇",
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    },
     "files": [
       "main.js",
       "preload.js",
