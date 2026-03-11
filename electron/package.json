@@ -6,7 +6,7 @@
   "author": "auto-comment",
   "repository": {
     "type": "git",
-    "url": "https://github.com/songhwaseob/youtube-auto-comment"
+    "url": "https://github.com/wassupss/youtube-auto-comment"
   },
   "scripts": {
     "start": "electron .",
