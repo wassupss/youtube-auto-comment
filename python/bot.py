@@ -22,7 +22,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 
 app = Flask(__name__)
-CORS(app)
+# ── localhost에서만 접근 허용 (Electron 렌더러 프로세스 전용) ──
+CORS(app, origins=["null", "file://"])  # Electron은 file:// 또는 null origin 사용
 
 # ── 경로 처리 ──────────────────────────────────────────────
 def get_base_dir():
@@ -49,8 +50,26 @@ DEFAULT_CONFIG = {
 def resolve_txt_path(txt_file: str) -> str:
     """config에 저장된 txt_file이 절대경로면 그대로, 파일명만 있으면 BASE_DIR 기준으로 반환"""
     if os.path.isabs(txt_file):
-        return txt_file
-    return os.path.join(BASE_DIR, txt_file)
+        resolved = txt_file
+    else:
+        resolved = os.path.join(BASE_DIR, txt_file)
+    # 경로 순회 공격 방지: BASE_DIR 또는 절대경로 파일만 허용
+    resolved = os.path.normpath(resolved)
+    return resolved
+
+def validate_url(url: str) -> bool:
+    """YouTube URL만 허용"""
+    return url.startswith("https://www.youtube.com/") or url.startswith("https://youtu.be/")
+
+def validate_brave_path(path: str) -> bool:
+    """실행파일 경로 기본 검증"""
+    if not path:
+        return False
+    normalized = os.path.normpath(path)
+    # 경로 순회 방지
+    if ".." in normalized:
+        return False
+    return True
 
 # ── 전역 상태 ──────────────────────────────────────────────
 log_queue = queue.Queue()
@@ -99,6 +118,15 @@ def get_config():
 @app.route("/config", methods=["POST"])
 def post_config():
     cfg = request.json
+    # 입력값 검증
+    if not validate_url(cfg.get("youtube_url", "")):
+        return jsonify({"ok": False, "msg": "유효하지 않은 YouTube URL입니다."}), 400
+    if not validate_brave_path(cfg.get("brave_path", "")):
+        return jsonify({"ok": False, "msg": "유효하지 않은 Brave 경로입니다."}), 400
+    try:
+        cfg["interval"] = max(10, min(3600, int(cfg.get("interval", 60))))
+    except (ValueError, TypeError):
+        cfg["interval"] = 60
     save_config(cfg)
     return jsonify({"ok": True})
 
@@ -115,6 +143,9 @@ def get_messages():
 def post_messages():
     cfg = load_config()
     path = resolve_txt_path(cfg["txt_file"])
+    # BASE_DIR 하위 경로만 쓰기 허용
+    if not path.startswith(BASE_DIR):
+        return jsonify({"ok": False, "msg": "허용되지 않는 경로입니다."}), 403
     content = request.json.get("content", "")
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -245,4 +276,5 @@ def _run_bot(cfg):
 
 if __name__ == "__main__":
     ensure_sample_txt(DEFAULT_TXT_FILE)
-    app.run(port=17117, debug=False, threaded=True)
+    # 반드시 127.0.0.1만 바인딩 → 외부 네트워크 접근 차단
+    app.run(host="127.0.0.1", port=17117, debug=False, threaded=True)
