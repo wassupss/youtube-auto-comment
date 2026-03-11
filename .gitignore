@@ -1,0 +1,26 @@
+# Python
+**/.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.spec
+build/
+dist_mac/
+dist_win/
+release_mac/
+release_win/
+
+# Electron
+electron/node_modules/
+electron/dist/
+electron/python_dist/
+# package-lock.json 은 포함 (npm ci 사용)
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# 기타
+*.xlsx
+config.json
+*.log

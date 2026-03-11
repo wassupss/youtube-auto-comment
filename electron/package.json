@@ -1,0 +1,68 @@
+{
+  "name": "youtube-bot",
+  "version": "1.0.0",
+  "description": "유튜브 자동 채팅 봇",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "com.youtubebot.app",
+    "productName": "유튜브봇",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "python_dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python_dist/",
+        "to": "python_dist/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "ko_KR"
+      ],
+      "language": "1042"
+    },
+    "dmg": {
+      "title": "유튜브봇 설치"
+    }
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}

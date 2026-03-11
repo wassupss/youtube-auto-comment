@@ -1,0 +1,157 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*" # v1.0.0 같은 태그를 push하면 자동 실행
+
+jobs:
+  # ── macOS 빌드 (.dmg) ────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python 패키지 설치
+        run: |
+          pip install --upgrade pip
+          pip install -r python/requirements.txt
+          pip install pyinstaller
+
+      - name: Python → 실행파일 빌드 (bot)
+        run: |
+          pyinstaller \
+            --onefile \
+            --name bot \
+            --distpath electron/python_dist \
+            --workpath /tmp/pyibuild \
+            --clean \
+            --hidden-import flask \
+            --hidden-import flask_cors \
+            --hidden-import selenium \
+            --hidden-import webdriver_manager \
+            python/bot.py
+
+      - name: Electron 패키지 설치
+        working-directory: electron
+        run: npm install
+
+      - name: Electron → .dmg 빌드
+        working-directory: electron
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 빌드 결과물 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-build
+          path: electron/dist/*.dmg
+
+  # ── Windows 빌드 (.exe 인스톨러) ─────────────────────────
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python 패키지 설치
+        run: |
+          pip install --upgrade pip
+          pip install -r python/requirements.txt
+          pip install pyinstaller
+
+      - name: Python → 실행파일 빌드 (bot.exe)
+        run: |
+          pyinstaller `
+            --onefile `
+            --name bot `
+            --distpath electron/python_dist `
+            --workpath $env:TEMP/pyibuild `
+            --clean `
+            --hidden-import flask `
+            --hidden-import flask_cors `
+            --hidden-import selenium `
+            --hidden-import webdriver_manager `
+            python/bot.py
+
+      - name: Electron 패키지 설치
+        working-directory: electron
+        run: npm install
+
+      - name: Electron → .exe 인스톨러 빌드
+        working-directory: electron
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 빌드 결과물 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-build
+          path: electron/dist/*.exe
+
+  # ── GitHub Releases에 자동 배포 ───────────────────────────
+  release:
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: mac 빌드 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-build
+          path: artifacts/mac
+
+      - name: win 빌드 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: win-build
+          path: artifacts/win
+
+      - name: GitHub Releases 배포
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "유튜브봇 ${{ github.ref_name }}"
+          body: |
+            ## 유튜브봇 ${{ github.ref_name }} 릴리즈
+
+            ### 다운로드
+            | OS | 파일 |
+            |---|---|
+            | 🍎 macOS (Apple Silicon M1/M2/M3) | `유튜브봇-*-arm64.dmg` |
+            | 🍎 macOS (Intel) | `유튜브봇-*.dmg` |
+            | 🪟 Windows | `유튜브봇 Setup *.exe` |
+
+            ### 설치 방법
+            - **macOS**: dmg 파일 열기 → 앱을 Applications 폴더로 드래그
+              - 보안 경고 시: 앱 우클릭 → '열기' 클릭
+            - **Windows**: Setup.exe 실행 → 설치 완료 후 바탕화면 아이콘 실행
+          files: |
+            artifacts/mac/*.dmg
+            artifacts/win/*.exe
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

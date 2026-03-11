@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src http://127.0.0.1:17117; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>유튜브 자동 채팅 봇</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- 헤더 -->
+      <header>
+        <div class="header-icon">▶</div>
+        <div>
+          <h1>유튜브 자동 채팅 봇</h1>
+          <p class="subtitle">YouTube Live 채팅 자동 전송 도구</p>
+        </div>
+        <div id="status-badge" class="badge badge-idle">대기 중</div>
+      </header>
+
+      <!-- 탭 -->
+      <nav class="tabs">
+        <button class="tab active" data-tab="settings">⚙️ 설정</button>
+        <button class="tab" data-tab="messages">📝 문구 편집</button>
+        <button class="tab" data-tab="log">📋 실행 로그</button>
+      </nav>
+
+      <!-- 설정 탭 -->
+      <section id="tab-settings" class="tab-content active">
+        <div class="form-group">
+          <label>YouTube URL</label>
+          <input
+            type="text"
+            id="youtube-url"
+            placeholder="https://www.youtube.com/watch?v=..."
+          />
+        </div>
+        <div class="form-group">
+          <label>문구 파일 경로 (.txt)</label>
+          <div class="input-row">
+            <input type="text" id="txt-file" placeholder="YTN_live.txt 경로" />
+            <button class="btn-secondary" id="browse-txt">찾아보기</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Brave 브라우저 경로</label>
+          <div class="input-row">
+            <input
+              type="text"
+              id="brave-path"
+              placeholder="brave.exe 또는 Brave Browser 경로"
+            />
+            <button class="btn-secondary" id="browse-brave">찾아보기</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>전송 간격 (초)</label>
+          <input
+            type="number"
+            id="interval"
+            min="10"
+            max="3600"
+            style="width: 120px"
+          />
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" id="save-config">💾 설정 저장</button>
+        </div>
+      </section>
+
+      <!-- 문구 편집 탭 -->
+      <section id="tab-messages" class="tab-content">
+        <p class="hint">한 줄에 문구 하나씩 입력하세요. 빈 줄은 무시됩니다.</p>
+        <textarea
+          id="messages-editor"
+          placeholder="홍보 문구를 입력하세요..."
+        ></textarea>
+        <div class="form-actions">
+          <button class="btn-secondary" id="reload-messages">
+            🔄 다시 불러오기
+          </button>
+          <button class="btn-secondary" id="save-messages">
+            💾 파일에 저장
+          </button>
+        </div>
+      </section>
+
+      <!-- 로그 탭 -->
+      <section id="tab-log" class="tab-content">
+        <div id="log-box"></div>
+        <div class="form-actions">
+          <button class="btn-secondary" id="clear-log">🗑 로그 지우기</button>
+        </div>
+      </section>
+
+      <!-- 하단 실행 버튼 -->
+      <footer>
+        <button class="btn-start" id="btn-start">▶ 봇 시작</button>
+        <button class="btn-stop" id="btn-stop" disabled>■ 중지</button>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
