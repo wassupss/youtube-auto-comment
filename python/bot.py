@@ -431,7 +431,10 @@ def _run_bot(cfg):
         _log(f"🔧 ChromeDriver 준비 중... (저장 경로: {driver_dir})")
         driver_path = _ensure_chromedriver(browser_exe, driver_dir)
         _log(f"✅ ChromeDriver 준비 완료: {driver_path}")
-        service = Service(executable_path=driver_path)
+        service = Service(
+            executable_path=driver_path,
+            host="127.0.0.1",   # IPv6(::1) 바인딩 방지 → localhost만 허용
+        )
         driver = webdriver.Chrome(service=service, options=options)
         driver_ref = driver
     except Exception as e:
