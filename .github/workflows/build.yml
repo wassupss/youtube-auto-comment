@@ -37,8 +37,8 @@ jobs:
           pip install pyinstaller
 
       - name: Python → 실행파일 빌드 (bot)
+        working-directory: python
         run: |
-          cd python
           pyinstaller bot.spec --distpath ../electron/python_dist --workpath /tmp/pyibuild --clean
 
       - name: Electron 패키지 설치
@@ -84,8 +84,8 @@ jobs:
           pip install pyinstaller
 
       - name: Python → 실행파일 빌드 (bot.exe)
+        working-directory: python
         run: |
-          cd python
           pyinstaller bot.spec --distpath ..\electron\python_dist --workpath $env:TEMP\pyibuild --clean
 
       - name: Electron 패키지 설치
