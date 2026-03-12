@@ -21,6 +21,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 
 app = Flask(__name__)
@@ -288,20 +289,22 @@ def _run_bot(cfg):
     options.add_argument("--disable-dev-shm-usage")
     _log(f"🌐 브라우저 경로: {browser_exe}")
 
-    # selenium-manager가 PyInstaller 환경에서 올바른 temp 경로를 쓰도록 설정
-    if getattr(sys, 'frozen', False):
-        # PyInstaller로 빌드된 경우 → 쓰기 가능한 temp 디렉토리 지정
-        tmp_dir = os.path.join(os.path.expanduser("~"), ".youtubebot_cache")
-        os.makedirs(tmp_dir, exist_ok=True)
-        os.environ.setdefault("SE_CACHE_PATH", tmp_dir)
-
+    # webdriver-manager로 chromedriver 자동 다운로드/캐싱
+    # PyInstaller 빌드 환경에서도 홈 디렉토리에 캐싱하므로 안정적으로 동작
     try:
-        service = Service()  # selenium-manager가 자동으로 chromedriver 관리
+        wdm_cache = os.path.join(os.path.expanduser("~"), ".youtubebot_cache", "wdm")
+        os.makedirs(wdm_cache, exist_ok=True)
+        os.environ["WDM_LOCAL"] = "1"           # 로컬 캐시 사용
+        os.environ["WDM_CACHE_PATH"] = wdm_cache
+
+        _log("🔧 ChromeDriver 준비 중... (첫 실행 시 다운로드, 잠시 대기)")
+        driver_path = ChromeDriverManager().install()
+        service = Service(executable_path=driver_path)
         driver = webdriver.Chrome(service=service, options=options)
         driver_ref = driver
     except Exception as e:
         _log(f"❌ 브라우저 실행 실패: {e}")
-        _log(f"   ChromeDriver 문제일 수 있습니다. 인터넷 연결을 확인하거나 앱을 재시작해보세요.")
+        _log(f"   인터넷 연결을 확인하거나 앱을 재시작해보세요.")
         _log("__DONE__")
         bot_running = False
         return
