@@ -33,7 +33,7 @@ pip install -q pyinstaller
 echo [2/4] Python 봇 빌드...
 if exist "electron\python_dist" rd /s /q "electron\python_dist"
 pyinstaller ^
-    --onefile ^
+    --onedir ^
     --name bot ^
     --distpath electron\python_dist ^
     --workpath %TEMP%\pyibuild_win ^
@@ -53,6 +53,8 @@ pyinstaller ^
     --hidden-import selenium.webdriver.support.expected_conditions ^
     --hidden-import openpyxl ^
     --collect-all selenium ^
+    --collect-all flask ^
+    --collect-all flask_cors ^
     python\bot.py
 if %errorlevel% neq 0 ( echo [오류] Python 빌드 실패! & pause & exit /b 1 )
 call deactivate

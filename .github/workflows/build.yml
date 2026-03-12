@@ -39,7 +39,7 @@ jobs:
       - name: Python → 실행파일 빌드 (bot)
         run: |
           pyinstaller \
-            --onefile \
+            --onedir \
             --name bot \
             --distpath electron/python_dist \
             --workpath /tmp/pyibuild \
@@ -59,6 +59,8 @@ jobs:
             --hidden-import selenium.webdriver.support.expected_conditions \
             --hidden-import openpyxl \
             --collect-all selenium \
+            --collect-all flask \
+            --collect-all flask_cors \
             python/bot.py
 
       - name: Electron 패키지 설치
@@ -106,7 +108,7 @@ jobs:
       - name: Python → 실행파일 빌드 (bot.exe)
         run: |
           pyinstaller `
-            --onefile `
+            --onedir `
             --name bot `
             --distpath electron/python_dist `
             --workpath $env:TEMP/pyibuild `
@@ -126,6 +128,8 @@ jobs:
             --hidden-import selenium.webdriver.support.expected_conditions `
             --hidden-import openpyxl `
             --collect-all selenium `
+            --collect-all flask `
+            --collect-all flask_cors `
             python/bot.py
 
       - name: Electron 패키지 설치

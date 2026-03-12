@@ -16,9 +16,9 @@ function getPythonExePath() {
   if (isPackaged) {
     const resourcesPath = process.resourcesPath;
     const exeName = platform === "win32" ? "bot.exe" : "bot";
-    return path.join(resourcesPath, "python_dist", exeName);
+    // --onedir 빌드: python_dist/bot/bot.exe
+    return path.join(resourcesPath, "python_dist", "bot", exeName);
   } else {
-    // 개발 모드: python으로 직접 실행
     return null;
   }
 }
