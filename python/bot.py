@@ -42,22 +42,31 @@ if platform.system() == "Windows":
 else:
     DEFAULT_BRAVE_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
 
-# OS별 브라우저 기본 경로
+# OS별 브라우저 기본 경로 (우선순위 순)
 BROWSER_PATHS = {
     "chrome": {
-        "Windows": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        "Darwin":  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "Linux":   "/usr/bin/google-chrome",
+        "Windows": [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), r"Google\Chrome\Application\chrome.exe"),
+            os.path.join(os.environ.get("PROGRAMFILES", ""), r"Google\Chrome\Application\chrome.exe"),
+        ],
+        "Darwin":  ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"],
+        "Linux":   ["/usr/bin/google-chrome", "/usr/bin/chromium-browser", "/usr/bin/chromium"],
     },
     "brave": {
-        "Windows": r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
-        "Darwin":  "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-        "Linux":   "/usr/bin/brave-browser",
+        "Windows": [
+            r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), r"BraveSoftware\Brave-Browser\Application\brave.exe"),
+        ],
+        "Darwin":  ["/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"],
+        "Linux":   ["/usr/bin/brave-browser", "/usr/bin/brave"],
     },
 }
 
 def resolve_browser_path(cfg: dict) -> str:
-    """browser_type 에 따라 실행파일 경로 반환"""
+    """browser_type 에 따라 실행파일 경로 반환 (여러 경로 중 존재하는 것 사용)"""
     browser_type = cfg.get("browser_type", "chrome")
     if browser_type == "custom":
         path = cfg.get("browser_path", "")
@@ -67,7 +76,11 @@ def resolve_browser_path(cfg: dict) -> str:
             path = os.path.join(path, "Contents", "MacOS", app_name)
         return path
     os_name = platform.system()  # 'Windows' | 'Darwin' | 'Linux'
-    return BROWSER_PATHS.get(browser_type, BROWSER_PATHS["chrome"]).get(os_name, "")
+    candidates = BROWSER_PATHS.get(browser_type, BROWSER_PATHS["chrome"]).get(os_name, [])
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    return candidates[0] if candidates else ""  # 없으면 첫 번째 경로 반환 (에러 메시지용)
 
 DEFAULT_CONFIG = {
     "youtube_url": "",
@@ -263,19 +276,32 @@ def _run_bot(cfg):
     options = Options()
     browser_exe = resolve_browser_path(cfg)
     if not browser_exe or not os.path.exists(browser_exe):
-        _log(f"❌ 브라우저를 찾을 수 없습니다: {browser_exe}")
+        _log(f"❌ 브라우저를 찾을 수 없습니다: {browser_exe or '(경로 없음)'}")
         _log(f"   Chrome 또는 Brave가 기본 경로에 설치되어 있는지 확인하세요.")
+        _log(f"   설정 탭에서 브라우저 종류를 'custom'으로 바꾸고 직접 경로를 입력할 수도 있습니다.")
         _log("__DONE__")
         bot_running = False
         return
     options.binary_location = browser_exe
     options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    _log(f"🌐 브라우저 경로: {browser_exe}")
+
+    # selenium-manager가 PyInstaller 환경에서 올바른 temp 경로를 쓰도록 설정
+    if getattr(sys, 'frozen', False):
+        # PyInstaller로 빌드된 경우 → 쓰기 가능한 temp 디렉토리 지정
+        tmp_dir = os.path.join(os.path.expanduser("~"), ".youtubebot_cache")
+        os.makedirs(tmp_dir, exist_ok=True)
+        os.environ.setdefault("SE_CACHE_PATH", tmp_dir)
 
     try:
-        driver = webdriver.Chrome(options=options)
+        service = Service()  # selenium-manager가 자동으로 chromedriver 관리
+        driver = webdriver.Chrome(service=service, options=options)
         driver_ref = driver
     except Exception as e:
         _log(f"❌ 브라우저 실행 실패: {e}")
+        _log(f"   ChromeDriver 문제일 수 있습니다. 인터넷 연결을 확인하거나 앱을 재시작해보세요.")
         _log("__DONE__")
         bot_running = False
         return

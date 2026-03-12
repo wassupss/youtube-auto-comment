@@ -40,7 +40,7 @@ jobs:
             --hidden-import flask \
             --hidden-import flask_cors \
             --hidden-import selenium \
-            --hidden-import webdriver_manager \
+            --hidden-import openpyxl \
             python/bot.py
 
       - name: Electron 패키지 설치
@@ -91,7 +91,7 @@ jobs:
             --hidden-import flask `
             --hidden-import flask_cors `
             --hidden-import selenium `
-            --hidden-import webdriver_manager `
+            --hidden-import openpyxl `
             python/bot.py
 
       - name: Electron 패키지 설치
