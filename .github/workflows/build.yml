@@ -135,6 +135,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: "유튜브봇 ${{ github.ref_name }}"
+          overwrite: true
           body: |
             ## 유튜브봇 ${{ github.ref_name }} 릴리즈
 
