@@ -38,30 +38,8 @@ jobs:
 
       - name: Python → 실행파일 빌드 (bot)
         run: |
-          pyinstaller \
-            --onedir \
-            --name bot \
-            --distpath electron/python_dist \
-            --workpath /tmp/pyibuild \
-            --clean \
-            --hidden-import flask \
-            --hidden-import flask_cors \
-            --hidden-import selenium \
-            --hidden-import selenium.webdriver \
-            --hidden-import selenium.webdriver.chrome \
-            --hidden-import selenium.webdriver.chrome.webdriver \
-            --hidden-import selenium.webdriver.chrome.service \
-            --hidden-import selenium.webdriver.chrome.options \
-            --hidden-import selenium.webdriver.common.by \
-            --hidden-import selenium.webdriver.common.keys \
-            --hidden-import selenium.webdriver.support \
-            --hidden-import selenium.webdriver.support.ui \
-            --hidden-import selenium.webdriver.support.expected_conditions \
-            --hidden-import openpyxl \
-            --collect-all selenium \
-            --collect-all flask \
-            --collect-all flask_cors \
-            python/bot.py
+          cd python
+          pyinstaller bot.spec --distpath ../electron/python_dist --workpath /tmp/pyibuild --clean
 
       - name: Electron 패키지 설치
         working-directory: electron
@@ -107,30 +85,8 @@ jobs:
 
       - name: Python → 실행파일 빌드 (bot.exe)
         run: |
-          pyinstaller `
-            --onedir `
-            --name bot `
-            --distpath electron/python_dist `
-            --workpath $env:TEMP/pyibuild `
-            --clean `
-            --hidden-import flask `
-            --hidden-import flask_cors `
-            --hidden-import selenium `
-            --hidden-import selenium.webdriver `
-            --hidden-import selenium.webdriver.chrome `
-            --hidden-import selenium.webdriver.chrome.webdriver `
-            --hidden-import selenium.webdriver.chrome.service `
-            --hidden-import selenium.webdriver.chrome.options `
-            --hidden-import selenium.webdriver.common.by `
-            --hidden-import selenium.webdriver.common.keys `
-            --hidden-import selenium.webdriver.support `
-            --hidden-import selenium.webdriver.support.ui `
-            --hidden-import selenium.webdriver.support.expected_conditions `
-            --hidden-import openpyxl `
-            --collect-all selenium `
-            --collect-all flask `
-            --collect-all flask_cors `
-            python/bot.py
+          cd python
+          pyinstaller bot.spec --distpath ..\electron\python_dist --workpath $env:TEMP\pyibuild --clean
 
       - name: Electron 패키지 설치
         working-directory: electron
@@ -141,6 +97,8 @@ jobs:
       - name: Electron → .exe 인스톨러 빌드
         working-directory: electron
         run: npm run build:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: 빌드 결과물 업로드
         uses: actions/upload-artifact@v4
