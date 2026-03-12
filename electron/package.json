@@ -1,6 +1,6 @@
 {
   "name": "youtube-bot",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "유튜브 자동 채팅 봇",
   "main": "main.js",
   "author": "auto-comment",

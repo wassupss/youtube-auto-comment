@@ -290,21 +290,33 @@ def _run_bot(cfg):
     _log(f"🌐 브라우저 경로: {browser_exe}")
 
     # webdriver-manager로 chromedriver 자동 다운로드/캐싱
-    # PyInstaller 빌드 시 sys.executable이 임시 경로(_MExxxxx)이므로
-    # 반드시 OS 환경변수 기반의 쓰기 가능한 실제 경로를 사용해야 함
+    # PyInstaller 환경에서 os.path.expanduser("~")가 임시경로를 반환하는 문제 방지:
+    # 환경변수 대신 ChromeDriverManager(path=...) 인자로 캐시 경로를 직접 전달
     try:
-        # Windows: APPDATA(%APPDATA%), macOS/Linux: HOME 순으로 사용
         if platform.system() == "Windows":
-            base = os.environ.get("APPDATA") or os.environ.get("USERPROFILE") or "C:\\Temp"
+            # winreg로 실제 APPDATA 경로를 레지스트리에서 직접 읽음
+            try:
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                     r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+                appdata, _ = winreg.QueryValueEx(key, "AppData")
+                winreg.CloseKey(key)
+            except Exception:
+                appdata = os.environ.get("APPDATA") or r"C:\Users\Public"
+            wdm_cache = os.path.join(appdata, "youtubebot_wdm")
         else:
-            base = os.environ.get("HOME") or "/tmp"
-        wdm_cache = os.path.join(base, ".youtubebot_cache", "wdm")
+            # macOS/Linux: sys.executable 기반 임시경로가 아닌 실제 HOME
+            home = os.path.expanduser("~")
+            # PyInstaller frozen 환경에서 ~ 가 이상한 경로면 /tmp 사용
+            if getattr(sys, 'frozen', False) and ("_ME" in home or "Temp" in home):
+                home = "/tmp"
+            wdm_cache = os.path.join(home, ".youtubebot_wdm")
+
         os.makedirs(wdm_cache, exist_ok=True)
-        os.environ["WDM_LOCAL"] = "1"
-        os.environ["WDM_CACHE_PATH"] = wdm_cache
         _log(f"🔧 ChromeDriver 준비 중... (캐시 경로: {wdm_cache})")
 
-        driver_path = ChromeDriverManager().install()
+        # path= 인자로 직접 전달 → 환경변수 무관하게 항상 이 경로 사용
+        driver_path = ChromeDriverManager(path=wdm_cache).install()
         service = Service(executable_path=driver_path)
         driver = webdriver.Chrome(service=service, options=options)
         driver_ref = driver
