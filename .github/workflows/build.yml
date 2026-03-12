@@ -39,7 +39,7 @@ jobs:
 
       - name: Python → 실행파일 빌드 (bot)
         run: |
-          pyinstaller python/bot.spec --distpath electron/python_dist --workpath /tmp/pyibuild --clean
+          python python/build_bot.py
 
       - name: Electron 패키지 설치
         working-directory: electron
@@ -84,7 +84,7 @@ jobs:
 
       - name: Python → 실행파일 빌드 (bot.exe)
         run: |
-          pyinstaller python/bot.spec --distpath electron/python_dist --workpath $env:TEMP\pyibuild --clean
+          python python/build_bot.py
 
       - name: Electron 패키지 설치
         working-directory: electron
