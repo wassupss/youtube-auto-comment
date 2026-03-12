@@ -41,7 +41,18 @@ pyinstaller ^
     --hidden-import flask ^
     --hidden-import flask_cors ^
     --hidden-import selenium ^
-    --hidden-import webdriver_manager ^
+    --hidden-import selenium.webdriver ^
+    --hidden-import selenium.webdriver.chrome ^
+    --hidden-import selenium.webdriver.chrome.webdriver ^
+    --hidden-import selenium.webdriver.chrome.service ^
+    --hidden-import selenium.webdriver.chrome.options ^
+    --hidden-import selenium.webdriver.common.by ^
+    --hidden-import selenium.webdriver.common.keys ^
+    --hidden-import selenium.webdriver.support ^
+    --hidden-import selenium.webdriver.support.ui ^
+    --hidden-import selenium.webdriver.support.expected_conditions ^
+    --hidden-import openpyxl ^
+    --collect-all selenium ^
     python\bot.py
 if %errorlevel% neq 0 ( echo [오류] Python 빌드 실패! & pause & exit /b 1 )
 call deactivate

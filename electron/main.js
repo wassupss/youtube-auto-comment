@@ -23,6 +23,25 @@ function getPythonExePath() {
   }
 }
 
+// ── Python 프로세스 강제 종료 (Windows: taskkill로 자식까지) ──
+function killPythonProcess() {
+  if (!pythonProcess) return;
+  try {
+    if (process.platform === "win32") {
+      // /T: 자식 프로세스 포함, /F: 강제 종료
+      spawn("taskkill", ["/pid", String(pythonProcess.pid), "/T", "/F"], {
+        stdio: "ignore",
+        detached: true,
+      });
+    } else {
+      pythonProcess.kill("SIGTERM");
+    }
+  } catch (e) {
+    console.error("Python 프로세스 종료 실패:", e);
+  }
+  pythonProcess = null;
+}
+
 // ── Python 서버 시작 ────────────────────────────────────────
 function startPythonServer() {
   const exePath = getPythonExePath();
@@ -121,10 +140,10 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (pythonProcess) pythonProcess.kill();
+  killPythonProcess();
   app.quit();
 });
 
 app.on("before-quit", () => {
-  if (pythonProcess) pythonProcess.kill();
+  killPythonProcess();
 });
