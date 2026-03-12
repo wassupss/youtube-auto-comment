@@ -5,6 +5,10 @@ on:
     tags:
       - "v*" # v1.0.0 같은 태그를 push하면 자동 실행
 
+# 전체 워크플로우 권한 설정
+permissions:
+  contents: write
+
 jobs:
   # ── macOS 빌드 (.dmg) ────────────────────────────────────
   build-mac:
@@ -12,6 +16,9 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Python 설정
         uses: actions/setup-python@v5
@@ -57,6 +64,8 @@ jobs:
       - name: Electron 패키지 설치
         working-directory: electron
         run: npm install
+        env:
+          npm_config_prefer_offline: "false"
 
       - name: Electron → .dmg 빌드
         working-directory: electron
@@ -74,6 +83,9 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Python 설정
         uses: actions/setup-python@v5
@@ -119,6 +131,8 @@ jobs:
       - name: Electron 패키지 설치
         working-directory: electron
         run: npm install
+        env:
+          npm_config_prefer_offline: "false"
 
       - name: Electron → .exe 인스톨러 빌드
         working-directory: electron
@@ -152,6 +166,7 @@ jobs:
       - name: GitHub Releases 배포
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           name: "유튜브봇 ${{ github.ref_name }}"
           overwrite: true
           body: |
@@ -172,5 +187,3 @@ jobs:
             artifacts/mac/*.dmg
             artifacts/win/*.exe
           generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
