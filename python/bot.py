@@ -14,6 +14,12 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import queue
 
+import urllib.request
+import urllib.error
+import zipfile
+import io
+import subprocess
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -21,8 +27,139 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
+
+
+def _get_driver_dir() -> str:
+    """PyInstaller/일반 환경 모두에서 쓰기 가능한 chromedriver 저장 디렉토리"""
+    if platform.system() == "Windows":
+        # 1순위: ctypes로 실제 APPDATA 직접 읽기 (환경변수 오염 우회)
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            # CSIDL_APPDATA = 0x001a
+            ret = ctypes.windll.shell32.SHGetFolderPathW(0, 0x001a, 0, 0, buf)
+            base = buf.value
+            # PyInstaller 임시경로(_MExxxxx)가 섞이지 않은 실제 경로인지 검증
+            if (ret == 0 and base and os.path.isdir(base)
+                    and "_ME" not in base and "Temp" not in base):
+                return os.path.join(base, "youtubebot_driver")
+        except Exception:
+            pass
+
+        # 2순위: USERPROFILE\AppData\Roaming (환경변수이지만 USERPROFILE은 비교적 안전)
+        try:
+            user_profile = os.environ.get("USERPROFILE", "")
+            if user_profile and os.path.isdir(user_profile):
+                candidate = os.path.join(user_profile, "AppData", "Roaming", "youtubebot_driver")
+                # 경로 내 PyInstaller 임시 디렉토리 패턴 차단
+                if "_ME" not in candidate and "Temp" not in candidate:
+                    return candidate
+        except Exception:
+            pass
+
+        # 3순위: C:\youtubebot_driver (항상 접근 가능한 고정 경로)
+        return r"C:\youtubebot_driver"
+    else:
+        # macOS/Linux: 홈 디렉토리 하위 사용 (/tmp는 재부팅 시 삭제될 수 있음)
+        home = os.path.expanduser("~")
+        if os.path.isdir(home):
+            return os.path.join(home, ".youtubebot_driver")
+        return os.path.join("/tmp", "youtubebot_driver")
+
+
+def _get_chrome_version(browser_exe: str) -> str:
+    """설치된 Chrome 버전의 major 번호 반환"""
+    try:
+        if platform.system() == "Windows":
+            result = subprocess.run(
+                [browser_exe, "--version", "--headless"],
+                capture_output=True, text=True, timeout=10
+            )
+        else:
+            result = subprocess.run(
+                [browser_exe, "--version"],
+                capture_output=True, text=True, timeout=10
+            )
+        version_str = result.stdout.strip() or result.stderr.strip()
+        # "Google Chrome 131.0.6778.85" → "131"
+        for part in version_str.split():
+            if part[0].isdigit():
+                return part.split(".")[0]
+    except Exception:
+        pass
+    return ""
+
+
+def _ensure_chromedriver(browser_exe: str, driver_dir: str) -> str:
+    """chromedriver가 없거나 버전이 다르면 다운로드 후 경로 반환"""
+    os.makedirs(driver_dir, exist_ok=True)
+
+    exe_name = "chromedriver.exe" if platform.system() == "Windows" else "chromedriver"
+    driver_path = os.path.join(driver_dir, exe_name)
+
+    chrome_major = _get_chrome_version(browser_exe)
+
+    # 버전 파일 확인 (캐시 재사용)
+    version_file = os.path.join(driver_dir, "version.txt")
+    if os.path.exists(driver_path) and os.path.exists(version_file):
+        with open(version_file) as f:
+            cached = f.read().strip()
+        if cached == chrome_major and chrome_major:
+            return driver_path
+
+    # Chrome for Testing API로 정확한 버전 조회
+    try:
+        api_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json"
+        with urllib.request.urlopen(api_url, timeout=15) as resp:
+            data = json.loads(resp.read())
+        full_version = data["channels"]["Stable"]["version"]
+    except Exception:
+        # API 실패 시 chrome_major 기반으로 직접 조회
+        try:
+            api_url2 = f"https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
+            with urllib.request.urlopen(api_url2, timeout=15) as resp:
+                data2 = json.loads(resp.read())
+            versions = [v for v in data2["versions"] if v["version"].startswith(chrome_major + ".")]
+            full_version = versions[-1]["version"] if versions else None
+        except Exception:
+            full_version = None
+
+    if not full_version:
+        if os.path.exists(driver_path):
+            return driver_path
+        raise RuntimeError("ChromeDriver 버전 정보를 가져올 수 없습니다. 인터넷 연결을 확인하세요.")
+
+    # 플랫폼별 다운로드 URL
+    os_name = platform.system()
+    if os_name == "Windows":
+        plat = "win64"
+        zip_inner = f"chromedriver-win64/chromedriver.exe"
+    elif os_name == "Darwin":
+        import subprocess as _sp
+        arch = _sp.run(["uname", "-m"], capture_output=True, text=True).stdout.strip()
+        plat = "mac-arm64" if arch == "arm64" else "mac-x64"
+        zip_inner = f"chromedriver-{plat}/chromedriver"
+    else:
+        plat = "linux64"
+        zip_inner = "chromedriver-linux64/chromedriver"
+
+    download_url = f"https://storage.googleapis.com/chrome-for-testing-public/{full_version}/{plat}/chromedriver-{plat}.zip"
+
+    with urllib.request.urlopen(download_url, timeout=60) as resp:
+        zip_data = resp.read()
+
+    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+        with zf.open(zip_inner) as src, open(driver_path, "wb") as dst:
+            dst.write(src.read())
+
+    if os_name != "Windows":
+        os.chmod(driver_path, 0o755)
+
+    with open(version_file, "w") as f:
+        f.write(chrome_major)
+
+    return driver_path
 
 app = Flask(__name__)
 # ── localhost에서만 접근 허용 (Electron 렌더러 프로세스 전용) ──
@@ -289,34 +426,11 @@ def _run_bot(cfg):
     options.add_argument("--disable-dev-shm-usage")
     _log(f"🌐 브라우저 경로: {browser_exe}")
 
-    # webdriver-manager로 chromedriver 자동 다운로드/캐싱
-    # PyInstaller 환경에서 os.path.expanduser("~")가 임시경로를 반환하는 문제 방지:
-    # 환경변수 대신 ChromeDriverManager(path=...) 인자로 캐시 경로를 직접 전달
     try:
-        if platform.system() == "Windows":
-            # winreg로 실제 APPDATA 경로를 레지스트리에서 직접 읽음
-            try:
-                import winreg
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                                     r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
-                appdata, _ = winreg.QueryValueEx(key, "AppData")
-                winreg.CloseKey(key)
-            except Exception:
-                appdata = os.environ.get("APPDATA") or r"C:\Users\Public"
-            wdm_cache = os.path.join(appdata, "youtubebot_wdm")
-        else:
-            # macOS/Linux: sys.executable 기반 임시경로가 아닌 실제 HOME
-            home = os.path.expanduser("~")
-            # PyInstaller frozen 환경에서 ~ 가 이상한 경로면 /tmp 사용
-            if getattr(sys, 'frozen', False) and ("_ME" in home or "Temp" in home):
-                home = "/tmp"
-            wdm_cache = os.path.join(home, ".youtubebot_wdm")
-
-        os.makedirs(wdm_cache, exist_ok=True)
-        _log(f"🔧 ChromeDriver 준비 중... (캐시 경로: {wdm_cache})")
-
-        # path= 인자로 직접 전달 → 환경변수 무관하게 항상 이 경로 사용
-        driver_path = ChromeDriverManager(path=wdm_cache).install()
+        driver_dir = _get_driver_dir()
+        _log(f"🔧 ChromeDriver 준비 중... (저장 경로: {driver_dir})")
+        driver_path = _ensure_chromedriver(browser_exe, driver_dir)
+        _log(f"✅ ChromeDriver 준비 완료: {driver_path}")
         service = Service(executable_path=driver_path)
         driver = webdriver.Chrome(service=service, options=options)
         driver_ref = driver

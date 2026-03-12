@@ -1,6 +1,6 @@
 {
+  "version": "1.2.4",
   "name": "youtube-bot",
-  "version": "1.2.1",
   "description": "유튜브 자동 채팅 봇",
   "main": "main.js",
   "author": "auto-comment",
@@ -20,8 +20,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer/**/*",
-      "python_dist/**/*"
+      "renderer/**/*"
     ],
     "extraResources": [
       {
@@ -63,7 +62,7 @@
       ],
       "language": "1042",
       "deleteAppDataOnUninstall": false,
-      "guid": "youtubebot-auto-comment-app"
+      "guid": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
     },
     "dmg": {
       "title": "YoutubeBot"

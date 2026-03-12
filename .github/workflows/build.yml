@@ -40,8 +40,6 @@ jobs:
             --hidden-import flask \
             --hidden-import flask_cors \
             --hidden-import selenium \
-            --hidden-import webdriver_manager \
-            --hidden-import webdriver_manager.chrome \
             --hidden-import openpyxl \
             python/bot.py
 
@@ -93,8 +91,6 @@ jobs:
             --hidden-import flask `
             --hidden-import flask_cors `
             --hidden-import selenium `
-            --hidden-import webdriver_manager `
-            --hidden-import webdriver_manager.chrome `
             --hidden-import openpyxl `
             python/bot.py
 
