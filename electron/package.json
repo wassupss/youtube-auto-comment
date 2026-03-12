@@ -56,15 +56,17 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "installerLanguages": [
         "ko_KR"
       ],
       "language": "1042",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "guid": "youtubebot-auto-comment-app"
     },
     "dmg": {
-      "title": "유튜브봇 설치"
+      "title": "YoutubeBot"
     }
   },
   "devDependencies": {
