@@ -1,5 +1,4 @@
-selenium
-webdriver-manager
+selenium>=4.6.0
 pandas
 openpyxl
 flask

@@ -63,7 +63,6 @@ async function loadConfig() {
   const res = await fetch(`${API}/config`);
   const cfg = await res.json();
   document.getElementById("youtube-url").value = cfg.youtube_url || "";
-  document.getElementById("interval").value = cfg.interval || 60;
 
   // 브라우저 선택 복원
   const browserType = cfg.browser_type || "chrome";
@@ -73,7 +72,7 @@ async function loadConfig() {
 // ── 브라우저 선택 UI ────────────────────────────────────────
 const BROWSER_HINTS = {
   chrome: "Chrome 기본 설치 경로를 자동으로 사용합니다.",
-  brave:  "Brave 기본 설치 경로를 자동으로 사용합니다.",
+  brave: "Brave 기본 설치 경로를 자동으로 사용합니다.",
   custom: "브라우저 실행파일 경로를 직접 입력하세요.",
 };
 
@@ -94,25 +93,28 @@ document.querySelectorAll(".btn-browser").forEach((btn) => {
   btn.addEventListener("click", () => selectBrowser(btn.dataset.browser));
 });
 
-document.getElementById("browse-browser").addEventListener("click", async () => {
-  const path = await window.api.openFile([
-    { name: "실행 파일", extensions: ["exe", "app", "*"] },
-    { name: "모든 파일", extensions: ["*"] },
-  ]);
-  if (path) document.getElementById("browser-path").value = path;
-});
+document
+  .getElementById("browse-browser")
+  .addEventListener("click", async () => {
+    const path = await window.api.openFile([
+      { name: "실행 파일", extensions: ["exe", "app", "*"] },
+      { name: "모든 파일", extensions: ["*"] },
+    ]);
+    if (path) document.getElementById("browser-path").value = path;
+  });
 
 // ── 설정 저장 ───────────────────────────────────────────────
 async function getConfigFromUI() {
-  const browserType = document.querySelector(".btn-browser.active")?.dataset.browser || "chrome";
-  const browserPath = browserType === "custom"
-    ? document.getElementById("browser-path").value.trim()
-    : "";
+  const browserType =
+    document.querySelector(".btn-browser.active")?.dataset.browser || "chrome";
+  const browserPath =
+    browserType === "custom"
+      ? document.getElementById("browser-path").value.trim()
+      : "";
   return {
     youtube_url: document.getElementById("youtube-url").value.trim(),
     browser_type: browserType,
     browser_path: browserPath,
-    interval: parseInt(document.getElementById("interval").value) || 60,
   };
 }
 
@@ -124,7 +126,10 @@ document.getElementById("save-config").addEventListener("click", async () => {
     body: JSON.stringify(cfg),
   });
   const data = await res.json();
-  if (!data.ok) { appendLog(`❌ ${data.msg}`); return; }
+  if (!data.ok) {
+    appendLog(`❌ ${data.msg}`);
+    return;
+  }
   showToast("설정이 저장되었습니다.");
 });
 
@@ -152,6 +157,29 @@ document.getElementById("save-messages").addEventListener("click", async () => {
 
 // ── 봇 시작 ─────────────────────────────────────────────────
 btnStart.addEventListener("click", async () => {
+  // 1. 문구 textarea 내용을 자동 저장 (저장 버튼 안 눌러도 반영)
+  const editorContent = document.getElementById("messages-editor").value;
+  await fetch(`${API}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: editorContent }),
+  });
+
+  // 2. 문구가 비어있으면 경고 후 중단
+  const lines = editorContent.split("\n").filter((l) => l.trim() !== "");
+  if (lines.length === 0) {
+    appendLog("❌ 문구 편집 탭에 전송할 문구를 입력해주세요.");
+    document
+      .querySelectorAll(".tab")
+      .forEach((t) => t.classList.remove("active"));
+    document
+      .querySelectorAll(".tab-content")
+      .forEach((c) => c.classList.remove("active"));
+    document.querySelector('[data-tab="messages"]').classList.add("active");
+    document.getElementById("tab-messages").classList.add("active");
+    return;
+  }
+
   const cfg = await getConfigFromUI();
   const res = await fetch(`${API}/bot/start`, {
     method: "POST",
@@ -166,6 +194,7 @@ btnStart.addEventListener("click", async () => {
 
   setRunning(true);
   logBox.innerHTML = "";
+  hideDownloadBtn();
   appendLog("▶ 봇을 시작합니다...");
 
   // 로그 탭으로 자동 전환
@@ -185,16 +214,66 @@ btnStart.addEventListener("click", async () => {
     if (msg === "__DONE__") {
       sse.close();
       setRunning(false);
+      hidLoginBtn();
       badge.className = "badge badge-done";
       badge.textContent = "완료";
-    } else {
+    } else if (msg === "__WAIT_LOGIN__") {
+      showLoginBtn();
+    } else if (msg === "__REPORT_READY__") {
+      showDownloadBtn();
+    } else if (msg !== "__PING__") {
       appendLog(msg);
     }
   };
   sse.onerror = () => {
     sse.close();
     setRunning(false);
+    hidLoginBtn();
   };
+});
+
+// ── 로그인 완료 버튼 ─────────────────────────────────────────
+const btnLoginReady = document.getElementById("btn-login-ready");
+const btnDownload = document.getElementById("btn-download");
+
+function showLoginBtn() {
+  btnLoginReady.style.display = "inline-flex";
+}
+function hidLoginBtn() {
+  btnLoginReady.style.display = "none";
+}
+
+btnLoginReady.addEventListener("click", async () => {
+  await fetch(`${API}/bot/login-ready`, { method: "POST" });
+  hidLoginBtn();
+  appendLog("✅ 로그인 완료 신호를 전달했습니다.");
+});
+
+// ── 리포트 다운로드 ──────────────────────────────────────────
+function showDownloadBtn() {
+  btnDownload.style.display = "inline-flex";
+}
+function hideDownloadBtn() {
+  btnDownload.style.display = "none";
+}
+
+btnDownload.addEventListener("click", async () => {
+  // Electron IPC로 저장 경로 선택 다이얼로그 열기
+  const savePath = await window.api.saveFile("홍보결과.xlsx", [
+    { name: "Excel 파일", extensions: ["xlsx"] },
+  ]);
+  if (!savePath) return;
+
+  // Flask에서 바이너리 스트림 받아서 파일로 저장
+  const res = await fetch(`${API}/report/download`);
+  if (!res.ok) {
+    appendLog("❌ 다운로드할 리포트가 없습니다.");
+    return;
+  }
+  const buf = await res.arrayBuffer();
+  await window.api.saveBuffer(savePath, buf);
+  appendLog(`✅ 리포트 저장 완료: ${savePath}`);
+  showToast("리포트가 저장되었습니다.");
 });
 
 // ── 봇 중지 ─────────────────────────────────────────────────

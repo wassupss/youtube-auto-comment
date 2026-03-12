@@ -9,6 +9,7 @@ import json
 import threading
 import sys
 import platform
+import itertools
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import queue
@@ -18,7 +19,8 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 
 app = Flask(__name__)
@@ -33,7 +35,7 @@ def get_base_dir():
 
 BASE_DIR = get_base_dir()
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-DEFAULT_TXT_FILE = os.path.join(BASE_DIR, "YTN_live.txt")
+DEFAULT_TXT_FILE = os.path.join(BASE_DIR, "messages.txt")
 
 if platform.system() == "Windows":
     DEFAULT_BRAVE_PATH = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
@@ -58,16 +60,20 @@ def resolve_browser_path(cfg: dict) -> str:
     """browser_type 에 따라 실행파일 경로 반환"""
     browser_type = cfg.get("browser_type", "chrome")
     if browser_type == "custom":
-        return cfg.get("browser_path", "")
+        path = cfg.get("browser_path", "")
+        # macOS: .app 번들 경로가 들어온 경우 실행파일 경로로 자동 보정
+        if path.endswith(".app"):
+            app_name = os.path.splitext(os.path.basename(path))[0]
+            path = os.path.join(path, "Contents", "MacOS", app_name)
+        return path
     os_name = platform.system()  # 'Windows' | 'Darwin' | 'Linux'
     return BROWSER_PATHS.get(browser_type, BROWSER_PATHS["chrome"]).get(os_name, "")
 
 DEFAULT_CONFIG = {
-    "youtube_url": "https://www.youtube.com/watch?v=FJfwehhzIhw",
-    "txt_file": "YTN_live.txt",
-    "browser_type": "chrome",   # chrome | brave | custom
-    "browser_path": "",         # custom 일 때만 사용
-    "interval": 60
+    "youtube_url": "",
+    "txt_file": "messages.txt",
+    "browser_type": "chrome",
+    "browser_path": "",
 }
 
 def resolve_txt_path(txt_file: str) -> str:
@@ -98,6 +104,8 @@ log_queue = queue.Queue()
 bot_running = False
 bot_thread = None
 driver_ref = None
+login_ready = threading.Event()
+last_log_data = []  # 마지막 실행 결과 보관 (다운로드용)
 
 # ── 설정 ───────────────────────────────────────────────────
 def load_config():
@@ -124,11 +132,10 @@ def load_messages(file_path):
         return [line.strip() for line in f if line.strip()]
 
 def ensure_sample_txt(path):
+    # 파일이 없으면 빈 파일만 생성 (샘플 문구 없음 - 사용자가 앱에서 직접 입력)
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
-            f.write("📢 홍보 문구 1번입니다. 여기에 내용을 입력하세요.\n")
-            f.write("📢 홍보 문구 2번입니다. 줄마다 하나씩 작성하세요.\n")
-            f.write("📢 홍보 문구 3번입니다. 빈 줄은 무시됩니다.\n")
+            f.write("")
 
 # ── API 라우트 ─────────────────────────────────────────────
 @app.route("/config", methods=["GET"])
@@ -145,10 +152,6 @@ def post_config():
         return jsonify({"ok": False, "msg": "유효하지 않은 YouTube URL입니다."}), 400
     if not validate_browser_path(cfg.get("browser_path", "")):
         return jsonify({"ok": False, "msg": "유효하지 않은 브라우저 경로입니다."}), 400
-    try:
-        cfg["interval"] = max(10, min(3600, int(cfg.get("interval", 60))))
-    except (ValueError, TypeError):
-        cfg["interval"] = 60
     save_config(cfg)
     return jsonify({"ok": True})
 
@@ -178,25 +181,46 @@ def start_bot():
     global bot_running, bot_thread
     if bot_running:
         return jsonify({"ok": False, "msg": "이미 실행 중입니다."})
-    cfg = request.json or load_config()
+    cfg = request.json or {}
+    # 저장된 config와 병합 (누락 키 보완)
+    saved = load_config()
+    saved.update({k: v for k, v in cfg.items() if v not in (None, "")})
+    cfg = saved
     save_config(cfg)
     bot_running = True
     bot_thread = threading.Thread(target=_run_bot, args=(cfg,), daemon=True)
     bot_thread.start()
     return jsonify({"ok": True})
 
+@app.route("/report/download")
+def download_report():
+    if not last_log_data:
+        return jsonify({"ok": False, "msg": "다운로드할 리포트가 없습니다."}), 404
+    import io
+    from flask import send_file
+    df = pd.DataFrame(last_log_data)
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    buf.seek(0)
+    filename = f"홍보결과_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.route("/report/status")
+def report_status():
+    return jsonify({"available": len(last_log_data) > 0, "count": len(last_log_data)})
+
+@app.route("/bot/login-ready", methods=["POST"])
+def login_ready_signal():
+    login_ready.set()
+    return jsonify({"ok": True})
+
 @app.route("/bot/stop", methods=["POST"])
 def stop_bot():
-    global bot_running, driver_ref
+    global bot_running
+    # bot_running만 False로 → _run_bot() finally 블록에서 파일 저장 후 정상 종료
     bot_running = False
-    if driver_ref:
-        try:
-            driver_ref.quit()
-        except Exception:
-            pass
-        driver_ref = None
-    log_queue.put("[중지] 봇이 중지되었습니다.")
-    log_queue.put("__DONE__")
+    login_ready.set()  # 로그인 대기 중이면 즉시 해제
     return jsonify({"ok": True})
 
 @app.route("/bot/status", methods=["GET"])
@@ -225,7 +249,10 @@ def _log(msg):
     log_queue.put(msg)
 
 def _run_bot(cfg):
-    global bot_running, driver_ref
+    global bot_running, driver_ref, last_log_data
+    # 누락된 키를 DEFAULT_CONFIG로 보완
+    for k, v in DEFAULT_CONFIG.items():
+        cfg.setdefault(k, v)
     messages = load_messages(resolve_txt_path(cfg["txt_file"]))
     if not messages:
         _log("❌ 문구 파일이 비어있거나 없습니다.")
@@ -245,9 +272,7 @@ def _run_bot(cfg):
     options.add_argument("--disable-blink-features=AutomationControlled")
 
     try:
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()), options=options
-        )
+        driver = webdriver.Chrome(options=options)
         driver_ref = driver
     except Exception as e:
         _log(f"❌ 브라우저 실행 실패: {e}")
@@ -256,45 +281,112 @@ def _run_bot(cfg):
         return
 
     driver.get(cfg["youtube_url"])
-    _log("⏳ 15초 대기 중... 브라우저에서 유튜브 로그인을 완료해주세요!")
+    _log("🔐 브라우저에서 YouTube에 로그인 후, 앱의 [로그인 완료] 버튼을 눌러주세요.")
+    _log("__WAIT_LOGIN__")  # 앱에 로그인 버튼 표시 신호
 
-    for i in range(15, 0, -1):
-        if not bot_running:
-            break
-        _log(f"  로그인 대기: {i}초 남음...")
-        time.sleep(1)
+    # 로그인 완료 버튼 누를 때까지 대기 (최대 10분)
+    login_ready.clear()
+    login_ready.wait(timeout=600)
+
+    if not bot_running:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+        driver_ref = None
+        _log("__DONE__")
+        return
+
+    _log("✅ 로그인 확인! 채팅 전송을 시작합니다.")
 
     log_data = []
-    interval = int(cfg["interval"])
+    round_num = 0
 
     try:
-        for i, msg in enumerate(messages):
-            if not bot_running:
-                break
+        msg_cycle = itertools.cycle(messages)  # 문구 무한 순환
+        msg_index = 0
+
+        while bot_running:
+            msg = next(msg_cycle)
+
+            # 한 바퀴 돌 때마다 라운드 표시
+            if msg_index % len(messages) == 0:
+                round_num += 1
+                _log(f"── 🔄 {round_num}회차 시작 (총 {len(messages)}개 문구) ──")
+
             try:
-                chat_box = driver.find_element(By.CSS_SELECTOR, "#focused-interaction-element")
-                final_msg = f"{msg} (code:{random.randint(100, 999)})"
-                chat_box.send_keys(final_msg)
+                wait = WebDriverWait(driver, 10)
+
+                # 채팅 iframe으로 전환
+                try:
+                    chat_iframe = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "iframe#chatframe"))
+                    )
+                    driver.switch_to.frame(chat_iframe)
+                except Exception:
+                    pass
+
+                # contenteditable div 찾기
+                chat_box = None
+                selectors = [
+                    "div#input[contenteditable]",
+                    "div[aria-label='채팅...'][contenteditable]",
+                    "div[aria-label='Chat...'][contenteditable]",
+                    "yt-live-chat-text-input-field-renderer #input",
+                ]
+                for sel in selectors:
+                    try:
+                        chat_box = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, sel)))
+                        break
+                    except Exception:
+                        continue
+
+                if chat_box is None:
+                    _log("⚠️ 채팅 입력창을 찾을 수 없습니다. 로그인 또는 채팅 활성화 여부를 확인하세요.")
+                    driver.switch_to.default_content()
+                    msg_index += 1
+                    continue
+
+                chat_box.click()
+                time.sleep(0.3)
+                chat_box.send_keys(msg)
+                time.sleep(0.3)
                 chat_box.send_keys(Keys.ENTER)
+
+                driver.switch_to.default_content()
+
                 now = time.strftime('%H:%M:%S')
-                _log(f"[{now}] {i+1}/{len(messages)}번 전송 완료: {final_msg}")
-                log_data.append({"시간": now, "문구": final_msg, "결과": "성공"})
+                pos = (msg_index % len(messages)) + 1
+                _log(f"[{now}] {round_num}회차 {pos}/{len(messages)}번 전송: {msg}")
+                log_data.append({"시간": now, "회차": round_num, "문구": msg, "결과": "성공"})
+
             except Exception as e:
                 _log(f"⚠️ 전송 오류 (건너뜀): {e}")
-                continue
+                try:
+                    driver.switch_to.default_content()
+                except Exception:
+                    pass
 
-            sleep_time = interval + random.uniform(1, 3)
-            _log(f"  ⏱ 다음 전송까지 {sleep_time:.0f}초 대기...")
+            msg_index += 1
+
+            if not bot_running:
+                break
+
+            sleep_time = random.uniform(30 * 60, 60 * 60)  # 30분~60분 랜덤
+            next_time = time.strftime('%H:%M:%S', time.localtime(time.time() + sleep_time))
+            _log(f"  ⏱ 다음 전송까지 {sleep_time/60:.0f}분 대기... (예정 시각: {next_time})")
             for _ in range(int(sleep_time)):
                 if not bot_running:
                     break
                 time.sleep(1)
     finally:
         if log_data:
-            report_path = os.path.join(BASE_DIR, "홍보_결과리포트.xlsx")
-            df = pd.DataFrame(log_data)
-            df.to_excel(report_path, index=False)
-            _log(f"✅ 완료! '홍보_결과리포트.xlsx' 저장됨.")
+            last_log_data = log_data  # 메모리에 보관 → 앱에서 다운로드 버튼으로 저장
+            _log(f"✅ 총 {len(log_data)}건 전송 완료. 리포트 다운로드 버튼을 눌러 저장하세요.")
+            _log("__REPORT_READY__")  # 앱에 다운로드 버튼 표시 신호
+        else:
+            _log("ℹ️ 전송된 문구가 없어 리포트가 생성되지 않았습니다.")
+        _log("[중지] 봇이 중지되었습니다.")
         try:
             driver.quit()
         except Exception:

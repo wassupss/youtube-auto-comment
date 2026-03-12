@@ -256,7 +256,10 @@ button {
   cursor: pointer;
   transition: all 0.15s;
 }
-.btn-browser:hover { color: var(--text); border-color: #555; }
+.btn-browser:hover {
+  color: var(--text);
+  border-color: #555;
+}
 .btn-browser.active {
   background: #1a1a2e;
   color: var(--accent);
@@ -336,4 +339,42 @@ footer {
 .btn-stop:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.btn-login-ready {
+  background: #16a34a;
+  color: #fff;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  animation: pulse 1.2s infinite;
+}
+.btn-login-ready:hover {
+  background: #15803d;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.btn-download {
+  background: #1d4ed8;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-download:hover {
+  background: #1e40af;
 }

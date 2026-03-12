@@ -95,6 +95,20 @@ ipcMain.handle("dialog:openFile", async (_, filters) => {
   return canceled ? null : filePaths[0];
 });
 
+ipcMain.handle("dialog:saveFile", async (_, defaultName, filters) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: defaultName || "report.xlsx",
+    filters: filters || [{ name: "All Files", extensions: ["*"] }],
+  });
+  return canceled ? null : filePath;
+});
+
+ipcMain.handle("fs:saveBuffer", async (_, filePath, buffer) => {
+  const { writeFile } = require("fs").promises;
+  await writeFile(filePath, Buffer.from(buffer));
+  return true;
+});
+
 // ── 앱 시작 ────────────────────────────────────────────────
 app.whenReady().then(async () => {
   startPythonServer();
