@@ -47,20 +47,20 @@ def main():
         BOT_PY,
     ]
 
-    print(f"[build_bot] 빌드 시작: {BOT_PY}")
-    print(f"[build_bot] 출력 경로: {DIST_PATH}")
+    print(f"[build_bot] start: {BOT_PY}")
+    print(f"[build_bot] dist: {DIST_PATH}")
 
     result = subprocess.run(cmd, cwd=SCRIPT_DIR)
     if result.returncode != 0:
-        print("[build_bot] ❌ 빌드 실패")
+        print("[build_bot] FAILED")
         sys.exit(1)
 
     # 빌드 결과 확인
     exe = os.path.join(DIST_PATH, "bot", "bot.exe" if sys.platform == "win32" else "bot")
     if os.path.exists(exe):
-        print(f"[build_bot] ✅ 빌드 성공: {exe}")
+        print(f"[build_bot] SUCCESS: {exe}")
     else:
-        print(f"[build_bot] ❌ 실행파일 없음: {exe}")
+        print(f"[build_bot] ERROR: exe not found: {exe}")
         sys.exit(1)
 
 if __name__ == "__main__":
