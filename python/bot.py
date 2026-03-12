@@ -290,14 +290,20 @@ def _run_bot(cfg):
     _log(f"🌐 브라우저 경로: {browser_exe}")
 
     # webdriver-manager로 chromedriver 자동 다운로드/캐싱
-    # PyInstaller 빌드 환경에서도 홈 디렉토리에 캐싱하므로 안정적으로 동작
+    # PyInstaller 빌드 시 sys.executable이 임시 경로(_MExxxxx)이므로
+    # 반드시 OS 환경변수 기반의 쓰기 가능한 실제 경로를 사용해야 함
     try:
-        wdm_cache = os.path.join(os.path.expanduser("~"), ".youtubebot_cache", "wdm")
+        # Windows: APPDATA(%APPDATA%), macOS/Linux: HOME 순으로 사용
+        if platform.system() == "Windows":
+            base = os.environ.get("APPDATA") or os.environ.get("USERPROFILE") or "C:\\Temp"
+        else:
+            base = os.environ.get("HOME") or "/tmp"
+        wdm_cache = os.path.join(base, ".youtubebot_cache", "wdm")
         os.makedirs(wdm_cache, exist_ok=True)
-        os.environ["WDM_LOCAL"] = "1"           # 로컬 캐시 사용
+        os.environ["WDM_LOCAL"] = "1"
         os.environ["WDM_CACHE_PATH"] = wdm_cache
+        _log(f"🔧 ChromeDriver 준비 중... (캐시 경로: {wdm_cache})")
 
-        _log("🔧 ChromeDriver 준비 중... (첫 실행 시 다운로드, 잠시 대기)")
         driver_path = ChromeDriverManager().install()
         service = Service(executable_path=driver_path)
         driver = webdriver.Chrome(service=service, options=options)
