@@ -14,12 +14,11 @@ jobs:
   build-mac:
     runs-on: macos-latest
     steps:
-      - name: git HTTPS 인증 설정
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
-
       - name: 코드 체크아웃
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Python 설정
         uses: actions/setup-python@v5
