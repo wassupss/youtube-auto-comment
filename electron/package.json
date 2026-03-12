@@ -1,6 +1,6 @@
 {
   "name": "youtube-bot",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "유튜브 자동 채팅 봇",
   "main": "main.js",
   "author": "auto-comment",
@@ -57,10 +57,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowDowngrade": true,
       "installerLanguages": [
         "ko_KR"
       ],
-      "language": "1042"
+      "language": "1042",
+      "deleteAppDataOnUninstall": false
     },
     "dmg": {
       "title": "유튜브봇 설치"
