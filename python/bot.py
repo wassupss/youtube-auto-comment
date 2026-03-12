@@ -238,7 +238,9 @@ def resolve_txt_path(txt_file: str) -> str:
     return resolved
 
 def validate_url(url: str) -> bool:
-    """YouTube URL만 허용"""
+    """YouTube URL만 허용 (빈 값은 저장 허용 - 실행 시점에 검증)"""
+    if not url:
+        return True
     return url.startswith("https://www.youtube.com/") or url.startswith("https://youtu.be/")
 
 def validate_browser_path(path: str) -> bool:
@@ -337,6 +339,11 @@ def start_bot():
     saved = load_config()
     saved.update({k: v for k, v in cfg.items() if v not in (None, "")})
     cfg = saved
+    # 실행 시점 URL 검증
+    if not cfg.get("youtube_url"):
+        return jsonify({"ok": False, "msg": "YouTube URL을 설정 탭에서 입력하고 저장해주세요."})
+    if not validate_url(cfg["youtube_url"]):
+        return jsonify({"ok": False, "msg": "유효하지 않은 YouTube URL입니다."})
     save_config(cfg)
     bot_running = True
     bot_thread = threading.Thread(target=_run_bot, args=(cfg,), daemon=True)
@@ -513,7 +520,18 @@ def _run_bot(cfg):
 
                 chat_box.click()
                 time.sleep(0.3)
-                chat_box.send_keys(msg)
+
+                # send_keys는 BMP 범위 밖 문자(이모지 등) 전송 불가
+                # → JS execCommand('insertText') 로 우회
+                try:
+                    driver.execute_script(
+                        "arguments[0].focus(); document.execCommand('insertText', false, arguments[1]);",
+                        chat_box, msg
+                    )
+                except Exception:
+                    # fallback: 그래도 안되면 send_keys
+                    chat_box.send_keys(msg)
+
                 time.sleep(0.3)
                 chat_box.send_keys(Keys.ENTER)
 
@@ -536,9 +554,9 @@ def _run_bot(cfg):
             if not bot_running:
                 break
 
-            sleep_time = random.uniform(30 * 60, 60 * 60)  # 30분~60분 랜덤
+            sleep_time = random.uniform(25, 45)  # 25초~45초 랜덤
             next_time = time.strftime('%H:%M:%S', time.localtime(time.time() + sleep_time))
-            _log(f"  ⏱ 다음 전송까지 {sleep_time/60:.0f}분 대기... (예정 시각: {next_time})")
+            _log(f"  ⏱ 다음 전송까지 {sleep_time:.0f}초 대기... (예정 시각: {next_time})")
             for _ in range(int(sleep_time)):
                 if not bot_running:
                     break
