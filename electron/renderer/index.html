@@ -66,17 +66,22 @@
           </p>
         </div>
         <div class="form-group">
-          <label>전송 간격</label>
-          <div class="browser-select-row">
-            <button class="btn-interval active" data-interval="fast">
-              ⚡ 빠름 (45~65초)
-            </button>
-            <button class="btn-interval" data-interval="slow">
-              🐢 느림 (270~305초)
-            </button>
+          <label>전송 간격 (초)</label>
+          <div class="interval-row">
+            <div class="interval-field">
+              <span class="interval-label">최소</span>
+              <input type="number" id="interval-min" min="5" max="3600" value="45" />
+              <span class="interval-unit">초</span>
+            </div>
+            <span class="interval-tilde">~</span>
+            <div class="interval-field">
+              <span class="interval-label">최대</span>
+              <input type="number" id="interval-max" min="5" max="3600" value="65" />
+              <span class="interval-unit">초</span>
+            </div>
           </div>
-          <p class="hint" id="interval-hint" style="margin-top: 6px">
-            채팅 전송 후 45~65초 간격으로 다음 문구를 보냅니다.
+          <p class="hint" style="margin-top: 6px">
+            입력한 범위 내에서 랜덤한 초마다 채팅을 전송합니다.
           </p>
         </div>
         <div class="form-actions">

@@ -225,7 +225,8 @@ DEFAULT_CONFIG = {
     "txt_file": "messages.txt",
     "browser_type": "chrome",
     "browser_path": "",
-    "interval_mode": "fast",  # "fast": 45~65초, "slow": 270~305초
+    "interval_min": 45,  # 최소 대기 초
+    "interval_max": 65,  # 최대 대기 초
 }
 
 def resolve_txt_path(txt_file: str) -> str:
@@ -555,11 +556,12 @@ def _run_bot(cfg):
             if not bot_running:
                 break
 
-            # interval_mode에 따라 대기 시간 결정
-            if cfg.get("interval_mode", "fast") == "slow":
-                sleep_time = random.uniform(270, 305)  # 270~305초
-            else:
-                sleep_time = random.uniform(45, 65)    # 45~65초 (기본)
+            # 사용자가 지정한 interval_min ~ interval_max 사이 랜덤 대기
+            i_min = float(cfg.get("interval_min", 45))
+            i_max = float(cfg.get("interval_max", 65))
+            if i_max < i_min:
+                i_max = i_min  # 혹시 잘못된 값이면 보정
+            sleep_time = random.uniform(i_min, i_max)
             next_time = time.strftime('%H:%M:%S', time.localtime(time.time() + sleep_time))
             _log(f"  ⏱ 다음 전송까지 {sleep_time:.0f}초 대기... (예정 시각: {next_time})")
             for _ in range(int(sleep_time)):

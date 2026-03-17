@@ -239,6 +239,38 @@ button {
   border-color: #555;
 }
 
+/* ── 인터벌 입력 ── */
+.interval-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.interval-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.interval-field input[type="number"] {
+  width: 80px;
+  flex: none;
+  text-align: center;
+}
+.interval-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.interval-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.interval-tilde {
+  font-size: 16px;
+  color: var(--text-muted);
+  flex: none;
+}
+
 /* ── 브라우저 선택 버튼 ── */
 .browser-select-row {
   display: flex;
