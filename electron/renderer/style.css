@@ -245,7 +245,8 @@ button {
   gap: 8px;
 }
 
-.btn-browser {
+.btn-browser,
+.btn-interval {
   flex: 1;
   background: var(--surface2);
   color: var(--text-muted);
@@ -256,11 +257,13 @@ button {
   cursor: pointer;
   transition: all 0.15s;
 }
-.btn-browser:hover {
+.btn-browser:hover,
+.btn-interval:hover {
   color: var(--text);
   border-color: #555;
 }
-.btn-browser.active {
+.btn-browser.active,
+.btn-interval.active {
   background: #1a1a2e;
   color: var(--accent);
   border-color: var(--accent);

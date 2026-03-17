@@ -65,9 +65,27 @@
             Chrome 기본 설치 경로를 자동으로 사용합니다.
           </p>
         </div>
+        <div class="form-group">
+          <label>전송 간격</label>
+          <div class="browser-select-row">
+            <button class="btn-interval active" data-interval="fast">
+              ⚡ 빠름 (45~65초)
+            </button>
+            <button class="btn-interval" data-interval="slow">
+              🐢 느림 (270~305초)
+            </button>
+          </div>
+          <p class="hint" id="interval-hint" style="margin-top: 6px">
+            채팅 전송 후 45~65초 간격으로 다음 문구를 보냅니다.
+          </p>
+        </div>
         <div class="form-actions">
           <button class="btn-secondary" id="save-config">💾 설정 저장</button>
         </div>
+        <p
+          id="config-error"
+          style="color: #f87171; font-size: 12px; min-height: 16px"
+        ></p>
       </section>
 
       <!-- 문구 편집 탭 -->

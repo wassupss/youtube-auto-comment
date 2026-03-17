@@ -67,6 +67,10 @@ async function loadConfig() {
   // 브라우저 선택 복원
   const browserType = cfg.browser_type || "chrome";
   selectBrowser(browserType, cfg.browser_path || "");
+
+  // 인터벌 선택 복원
+  const intervalMode = cfg.interval_mode || "fast";
+  selectInterval(intervalMode);
 }
 
 // ── 브라우저 선택 UI ────────────────────────────────────────
@@ -93,6 +97,24 @@ document.querySelectorAll(".btn-browser").forEach((btn) => {
   btn.addEventListener("click", () => selectBrowser(btn.dataset.browser));
 });
 
+// ── 인터벌 선택 UI ──────────────────────────────────────────
+const INTERVAL_HINTS = {
+  fast: "채팅 전송 후 45~65초 간격으로 다음 문구를 보냅니다.",
+  slow: "채팅 전송 후 270~305초 간격으로 다음 문구를 보냅니다.",
+};
+
+function selectInterval(mode) {
+  document.querySelectorAll(".btn-interval").forEach((b) => {
+    b.classList.toggle("active", b.dataset.interval === mode);
+  });
+  document.getElementById("interval-hint").textContent =
+    INTERVAL_HINTS[mode] || "";
+}
+
+document.querySelectorAll(".btn-interval").forEach((btn) => {
+  btn.addEventListener("click", () => selectInterval(btn.dataset.interval));
+});
+
 document
   .getElementById("browse-browser")
   .addEventListener("click", async () => {
@@ -111,15 +133,20 @@ async function getConfigFromUI() {
     browserType === "custom"
       ? document.getElementById("browser-path").value.trim()
       : "";
+  const intervalMode =
+    document.querySelector(".btn-interval.active")?.dataset.interval || "fast";
   return {
     youtube_url: document.getElementById("youtube-url").value.trim(),
     browser_type: browserType,
     browser_path: browserPath,
+    interval_mode: intervalMode,
   };
 }
 
 document.getElementById("save-config").addEventListener("click", async () => {
   const cfg = await getConfigFromUI();
+  const errEl = document.getElementById("config-error");
+  errEl.textContent = "";
   const res = await fetch(`${API}/config`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -127,7 +154,7 @@ document.getElementById("save-config").addEventListener("click", async () => {
   });
   const data = await res.json();
   if (!data.ok) {
-    appendLog(`❌ ${data.msg}`);
+    errEl.textContent = "⚠️ " + data.msg;
     return;
   }
   showToast("설정이 저장되었습니다.");
