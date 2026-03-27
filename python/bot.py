@@ -69,25 +69,74 @@ def _get_driver_dir() -> str:
 
 
 def _get_chrome_version(browser_exe: str) -> str:
-    """설치된 Chrome 버전의 major 번호 반환"""
-    try:
-        if platform.system() == "Windows":
+    """설치된 Chrome/Brave 버전의 major 번호 반환"""
+    if platform.system() == "Windows":
+        # Windows: --version --headless는 Brave에서 브라우저 창이 열려 버전 출력 안 됨
+        # 1순위: exe 파일의 FileVersion 메타데이터에서 직접 읽기
+        try:
+            import ctypes
+            from ctypes import wintypes
+            ver_size = ctypes.windll.version.GetFileVersionInfoSizeW(browser_exe, None)
+            if ver_size > 0:
+                buf = ctypes.create_string_buffer(ver_size)
+                ctypes.windll.version.GetFileVersionInfoW(browser_exe, None, ver_size, buf)
+                p_info = ctypes.c_void_p()
+                n_info = ctypes.c_uint()
+                ctypes.windll.version.VerQueryValueW(
+                    buf, "\\", ctypes.byref(p_info), ctypes.byref(n_info)
+                )
+                # VS_FIXEDFILEINFO 구조체: offset 8=dwFileVersionMS, 12=dwFileVersionLS
+                ms = ctypes.cast(p_info, ctypes.POINTER(ctypes.c_uint32))[2]
+                # major = 상위 16비트
+                major = (ms >> 16) & 0xFFFF
+                if major > 0:
+                    return str(major)
+        except Exception:
+            pass
+
+        # 2순위: PowerShell로 FileVersionInfo 읽기
+        try:
             result = subprocess.run(
-                [browser_exe, "--version", "--headless"],
+                ["powershell", "-NoProfile", "-Command",
+                 f"(Get-Item '{browser_exe}').VersionInfo.FileVersion"],
                 capture_output=True, text=True, timeout=10
             )
-        else:
+            ver = result.stdout.strip()
+            if ver and ver[0].isdigit():
+                return ver.split(".")[0]
+        except Exception:
+            pass
+
+        # 3순위: wmic으로 버전 읽기
+        try:
+            result = subprocess.run(
+                ["wmic", "datafile", "where", f"name='{browser_exe.replace(chr(92), chr(92)*2)}'",
+                 "get", "Version", "/value"],
+                capture_output=True, text=True, timeout=10
+            )
+            for line in result.stdout.splitlines():
+                if line.startswith("Version="):
+                    ver = line.split("=", 1)[1].strip()
+                    if ver and ver[0].isdigit():
+                        return ver.split(".")[0]
+        except Exception:
+            pass
+
+    else:
+        # macOS/Linux: --version 플래그로 충분
+        try:
             result = subprocess.run(
                 [browser_exe, "--version"],
                 capture_output=True, text=True, timeout=10
             )
-        version_str = result.stdout.strip() or result.stderr.strip()
-        # "Google Chrome 131.0.6778.85" → "131"
-        for part in version_str.split():
-            if part[0].isdigit():
-                return part.split(".")[0]
-    except Exception:
-        pass
+            version_str = result.stdout.strip() or result.stderr.strip()
+            # "Google Chrome 131.0.6778.85" → "131"
+            for part in version_str.split():
+                if part[0].isdigit():
+                    return part.split(".")[0]
+        except Exception:
+            pass
+
     return ""
 
 
