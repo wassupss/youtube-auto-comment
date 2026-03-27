@@ -1,5 +1,5 @@
 {
-  "version": "1.4.1",
+  "version": "1.4.2",
   "name": "youtube-bot",
   "description": "유튜브 자동 채팅 봇",
   "main": "main.js",

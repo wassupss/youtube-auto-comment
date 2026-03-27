@@ -108,20 +108,27 @@ def _ensure_chromedriver(browser_exe: str, driver_dir: str) -> str:
         if cached == chrome_major and chrome_major:
             return driver_path
 
-    # Chrome for Testing API로 정확한 버전 조회
-    try:
-        api_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json"
-        with urllib.request.urlopen(api_url, timeout=15) as resp:
-            data = json.loads(resp.read())
-        full_version = data["channels"]["Stable"]["version"]
-    except Exception:
-        # API 실패 시 chrome_major 기반으로 직접 조회
+    # Chrome for Testing API로 브라우저 major 버전과 일치하는 ChromeDriver 버전 조회
+    full_version = None
+
+    # 1순위: chrome_major에 정확히 맞는 버전을 known-good-versions에서 검색
+    if chrome_major:
         try:
-            api_url2 = f"https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
+            api_url2 = "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
             with urllib.request.urlopen(api_url2, timeout=15) as resp:
                 data2 = json.loads(resp.read())
             versions = [v for v in data2["versions"] if v["version"].startswith(chrome_major + ".")]
             full_version = versions[-1]["version"] if versions else None
+        except Exception:
+            full_version = None
+
+    # 2순위: major 버전 매칭 실패 시 Stable 채널 최신 버전으로 폴백
+    if not full_version:
+        try:
+            api_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json"
+            with urllib.request.urlopen(api_url, timeout=15) as resp:
+                data = json.loads(resp.read())
+            full_version = data["channels"]["Stable"]["version"]
         except Exception:
             full_version = None
 
