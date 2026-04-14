@@ -119,8 +119,10 @@ async function getConfigFromUI() {
     browserType === "custom"
       ? document.getElementById("browser-path").value.trim()
       : "";
-  const intervalMin = parseInt(document.getElementById("interval-min").value, 10) || 45;
-  const intervalMax = parseInt(document.getElementById("interval-max").value, 10) || 65;
+  const intervalMin =
+    parseInt(document.getElementById("interval-min").value, 10) || 45;
+  const intervalMax =
+    parseInt(document.getElementById("interval-max").value, 10) || 65;
   return {
     youtube_url: document.getElementById("youtube-url").value.trim(),
     browser_type: browserType,

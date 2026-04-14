@@ -10,8 +10,16 @@ echo "========================================"
 
 # ── 1. Python 가상환경 & 패키지 ─────────────────────────────
 echo "\n[1/4] Python 환경 설정..."
+# Homebrew Python 3.13 우선, 없으면 시스템 python3 사용
+PYTHON_BIN="python3"
+if [ -x "/opt/homebrew/opt/python@3.13/bin/python3.13" ]; then
+  PYTHON_BIN="/opt/homebrew/opt/python@3.13/bin/python3.13"
+elif [ -x "/usr/local/opt/python@3.13/bin/python3.13" ]; then
+  PYTHON_BIN="/usr/local/opt/python@3.13/bin/python3.13"
+fi
+echo "  Python: $($PYTHON_BIN --version)"
 if [ ! -d "python/.venv" ]; then
-  python3 -m venv python/.venv
+  $PYTHON_BIN -m venv python/.venv
 fi
 source python/.venv/bin/activate
 pip install -q --upgrade pip

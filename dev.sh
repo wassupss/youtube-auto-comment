@@ -5,10 +5,18 @@ cd "$(dirname "$0")"
 
 echo "🚀 개발 모드 실행..."
 
+# Homebrew Python 3.13 우선, 없으면 시스템 python3 사용
+PYTHON_BIN="python3"
+if [ -x "/opt/homebrew/opt/python@3.13/bin/python3.13" ]; then
+  PYTHON_BIN="/opt/homebrew/opt/python@3.13/bin/python3.13"
+elif [ -x "/usr/local/opt/python@3.13/bin/python3.13" ]; then
+  PYTHON_BIN="/usr/local/opt/python@3.13/bin/python3.13"
+fi
+
 # Python 서버 백그라운드 실행
 if [ ! -d "python/.venv" ]; then
-  echo "Python 가상환경 생성 중..."
-  python3 -m venv python/.venv
+  echo "Python 가상환경 생성 중... ($($PYTHON_BIN --version))"
+  $PYTHON_BIN -m venv python/.venv
   source python/.venv/bin/activate
   pip install -q -r python/requirements.txt
 else
