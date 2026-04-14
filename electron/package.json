@@ -1,5 +1,5 @@
 {
-  "version": "1.4.3",
+  "version": "1.4.4",
   "name": "youtube-bot",
   "description": "유튜브 자동 채팅 봇",
   "main": "main.js",
@@ -69,7 +69,7 @@
     }
   },
   "devDependencies": {
-    "electron": "^29.0.0",
-    "electron-builder": "^24.0.0"
+    "electron": "^41.0.0",
+    "electron-builder": "^26.0.0"
   }
 }

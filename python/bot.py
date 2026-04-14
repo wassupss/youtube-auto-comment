@@ -311,12 +311,13 @@ def validate_browser_path(path: str) -> bool:
     return True
 
 # ── 전역 상태 ──────────────────────────────────────────────
-log_queue = queue.Queue()
+log_queue = queue.Queue(maxsize=1000)  # 최대 1000건 버퍼, 초과 시 오래된 항목 버림
 bot_running = False
 bot_thread = None
 driver_ref = None
 login_ready = threading.Event()
 last_log_data = []  # 마지막 실행 결과 보관 (다운로드용)
+MAX_LOG_DATA = 50000  # log_data 최대 보관 건수 (약 50,000건 ≈ 한 달 분량)
 
 # ── 설정 ───────────────────────────────────────────────────
 def load_config():
@@ -462,7 +463,18 @@ def health():
 
 # ── 봇 실행 로직 ───────────────────────────────────────────
 def _log(msg):
-    log_queue.put(msg)
+    try:
+        log_queue.put_nowait(msg)
+    except queue.Full:
+        # 큐가 꽉 차면 오래된 항목 하나 버리고 새 항목 추가
+        try:
+            log_queue.get_nowait()
+        except queue.Empty:
+            pass
+        try:
+            log_queue.put_nowait(msg)
+        except queue.Full:
+            pass
 
 def _run_bot(cfg):
     global bot_running, driver_ref, last_log_data
@@ -599,6 +611,9 @@ def _run_bot(cfg):
                 pos = (msg_index % len(messages)) + 1
                 _log(f"[{now}] {round_num}회차 {pos}/{len(messages)}번 전송: {msg}")
                 log_data.append({"시간": now, "회차": round_num, "문구": msg, "결과": "성공"})
+                # 메모리 보호: 최대 보관 건수 초과 시 오래된 항목 제거
+                if len(log_data) > MAX_LOG_DATA:
+                    log_data[:] = log_data[-MAX_LOG_DATA:]
 
             except Exception as e:
                 _log(f"⚠️ 전송 오류 (건너뜀): {e}")

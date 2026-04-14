@@ -32,6 +32,10 @@ function appendLog(msg) {
     line.classList.add("info");
   line.textContent = msg;
   logBox.appendChild(line);
+  // 메모리 보호: DOM 노드 최대 500개 유지 (장기 실행 시 브라우저 메모리 폭증 방지)
+  while (logBox.childElementCount > 500) {
+    logBox.removeChild(logBox.firstChild);
+  }
   logBox.scrollTop = logBox.scrollHeight;
 }
 
